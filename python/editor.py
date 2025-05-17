@@ -1,7 +1,7 @@
 import curses
 from curses import window
 
-def editor_main(stdscr: window, filepath: str, file_content: str):
+def editor_init(stdscr: window, filepath: str, file_content: str):
     curses.curs_set(1)
     if curses.can_change_color():
         OFF_WHITE_ID = 1
@@ -22,7 +22,6 @@ def editor_main(stdscr: window, filepath: str, file_content: str):
 
     bold_underline = curses.A_BOLD | curses.A_UNDERLINE
 
-
     max_y, max_x = stdscr.getmaxyx()
     label_win = curses.newwin(1, max_x, 0, 0)
     if (l := len(filepath)) + 54 > max_x:
@@ -38,6 +37,19 @@ def editor_main(stdscr: window, filepath: str, file_content: str):
     label_win.addstr(label, bold_underline | WHITE_ON_LIGHT_PURPLE)
     label_win.refresh()
 
+    tool_win = curses.newwin(1, max_x, max_y - 2, 0)
+    stdscr.refresh()
+
+    help_win = curses.newwin(1, max_x, max_y - 1, 0)
+    if max_x > 108:
+        menu = f"| ^H: Help | ^C: Cmd-Tool | ^X: Exit | ^S: Save | ^F: Find | ^D: Duplicate | ^K: Cut | ^Z: Undo | ^Y: Redo |{" " * (max_x - 109)}"
+    else:
+        menu = "| ^H: Help |"
+
+    stdscr.refresh()
+    help_win.addstr(menu, WHITE_ON_LIGHT_PURPLE)
+    help_win.refresh()
+
     stdscr.move(1, 0)
 
     file_lines = file_content.split("\n")
@@ -50,47 +62,62 @@ def editor_main(stdscr: window, filepath: str, file_content: str):
 
     stdscr.move(1, 0)
 
+    return file_pad, file_lines, filelength, tool_win
 
-
+def editor_loop(stdscr: window, file_content: str, file_pad: window, file_lines: list, filelength: int, tool_win: window):
     while True:
-        key = stdscr.getch()
-        coords = stdscr.getyx()
+        try:
+            key = stdscr.getkey()
+            coords = stdscr.getyx()
 
-        #print(str(key) + " ")
-        if key == 259:
-            if coords[0] == 1:
-                continue #TODO: Implement the scrolling mechanism for the text pad
-            else:
-                next_line = file_lines[coords[0] - 2]
-                if coords[1] >= len(next_line):
-                    stdscr.move(coords[0] - 1, len(next_line))
-                else:
-                    stdscr.move(coords[0] - 1, coords[1])
-        elif key == 258:
-            if coords[0] + 1 >= filelength:
-                continue  # TODO: Implement the scrolling mechanism for the text pad
-            else:
-                next_line = file_lines[coords[0]]
-                if coords[1] >= len(next_line):
-                    stdscr.move(coords[0] + 1, len(next_line))
-                else:
-                    stdscr.move(coords[0] + 1, coords[1])
+            match key:
+                case "\x18":
+                    exit(0)
 
-        elif key == 261:
-            line = file_lines[coords[0] - 1]
-            if coords[1] >= len(line):
-                stdscr.move(coords[0] + 1, 0)
-            else:
-                stdscr.move(coords[0], coords[1] + 1)
-        elif key == 260:
-            if coords[1] == 0:
-                if coords[0] == 1:
-                    continue
-                else:
-                    stdscr.move(coords[0] - 1, len(file_lines[coords[0] - 2]))
-            else:
-                stdscr.move(coords[0], coords[1] - 1)
+                case "KEY_UP":
+                    if coords[0] == 1:
+                        continue #TODO: Implement the scrolling mechanism for the text pad
+                    else:
+                        next_line = file_lines[coords[0] - 2]
+                        if coords[1] >= len(next_line):
+                            stdscr.move(coords[0] - 1, len(next_line))
+                        else:
+                            stdscr.move(coords[0] - 1, coords[1])
+                case "KEY_DOWN":
+                    if coords[0] + 1 >= filelength:
+                        continue  # TODO: Implement the scrolling mechanism for the text pad
+                    else:
+                        next_line = file_lines[coords[0]]
+                        if coords[1] >= len(next_line):
+                            stdscr.move(coords[0] + 1, len(next_line))
+                        else:
+                            stdscr.move(coords[0] + 1, coords[1])
+                case "KEY_RIGHT":
+                    line = file_lines[coords[0] - 1]
+                    if coords[1] >= len(line):
+                        stdscr.move(coords[0] + 1, 0)
+                    else:
+                        stdscr.move(coords[0], coords[1] + 1)
+                case "KEY_LEFT":
+                    if coords[1] == 0:
+                        if coords[0] == 1:
+                            continue
+                        else:
+                            stdscr.move(coords[0] - 1, len(file_lines[coords[0] - 2]))
+                    else:
+                        stdscr.move(coords[0], coords[1] - 1)
 
-        stdscr.refresh()
+
+                case "\x06": # control+f
+                    pass
+
+            stdscr.refresh()
+        except (KeyboardInterrupt, curses.error):
+            continue
+
+def editor_main(stdscr: window, filepath: str, file_content: str):
+    file_pad, file_lines, filelength, tool_win = editor_init(stdscr, filepath, file_content)
+
+    file_content = editor_loop(stdscr, file_content, file_pad, file_lines, filelength, tool_win)
 
     return file_content
