@@ -50,6 +50,8 @@ def editor_main(stdscr: window, filepath: str, file_content: str):
 
     stdscr.move(1, 0)
 
+
+
     while True:
         key = stdscr.getch()
         coords = stdscr.getyx()
@@ -65,29 +67,27 @@ def editor_main(stdscr: window, filepath: str, file_content: str):
                 else:
                     stdscr.move(coords[0] - 1, coords[1])
         elif key == 258:
-            if coords[0] == filelength:
+            if coords[0] + 1 >= filelength:
                 continue  # TODO: Implement the scrolling mechanism for the text pad
             else:
-                if coords[0] + 1 >= len(file_lines):
-                    continue
-                next_line = file_lines[coords[0] + 1]
+                next_line = file_lines[coords[0]]
                 if coords[1] >= len(next_line):
                     stdscr.move(coords[0] + 1, len(next_line))
                 else:
                     stdscr.move(coords[0] + 1, coords[1])
 
         elif key == 261:
-            if coords[0] + 1 >= len(file_lines):
-                continue
-
             line = file_lines[coords[0] - 1]
             if coords[1] >= len(line):
-                continue
+                stdscr.move(coords[0] + 1, 0)
             else:
                 stdscr.move(coords[0], coords[1] + 1)
         elif key == 260:
             if coords[1] == 0:
-                continue
+                if coords[0] == 1:
+                    continue
+                else:
+                    stdscr.move(coords[0] - 1, len(file_lines[coords[0] - 2]))
             else:
                 stdscr.move(coords[0], coords[1] - 1)
 
