@@ -1,6 +1,13 @@
 import curses
 from curses import window
 
+def editor_main(stdscr: window, filepath: str, file_content: str):
+    file_pad, file_lines, filelength, tool_win, WHITE_ON_LIGHT_PURPLE, WHITE_ON_BLACK = editor_init(stdscr, filepath, file_content)
+
+    file_content = editor_loop(stdscr, filepath, file_content, file_pad, file_lines, filelength, tool_win, WHITE_ON_LIGHT_PURPLE, WHITE_ON_BLACK)
+
+    return file_content
+
 def editor_init(stdscr: window, filepath: str, file_content: str):
     curses.curs_set(1)
     if curses.can_change_color():
@@ -37,13 +44,13 @@ def editor_init(stdscr: window, filepath: str, file_content: str):
     label_win.addstr(label, bold_underline | WHITE_ON_LIGHT_PURPLE)
     label_win.refresh()
 
-    tool_win = curses.newwin(1, max_x, max_y - 2, 0)
+    tool_win = curses.newwin(3, max_x, max_y - 4, 0)
     stdscr.refresh()
 
     help_win = curses.newwin(1, max_x, max_y - 1, 0)
-    if max_x > 108:
-        s = " " * ((max_x - 109) // 2)
-        menu = f"{s}| ^H: Help | ^C: Cmd-Tool | ^X: Exit | ^S: Save | ^F: Find | ^D: Duplicate | ^K: Cut | ^Z: Undo | ^Y: Redo |{s}"
+    if max_x > 113:
+        s = " " * ((max_x - 114) // 2)
+        menu = f"{s}| ^H: Help | ^C: Cmd-Tool | ^X: Exit | ^W: Save | ^F: Fast Mode | ^D: Duplicate | ^K: Cut | ^Z: Undo | ^Y: Redo |{s}"
     else:
         menu = "| ^H: Help |"
 
@@ -65,8 +72,10 @@ def editor_init(stdscr: window, filepath: str, file_content: str):
 
     return file_pad, file_lines, filelength, tool_win, WHITE_ON_LIGHT_PURPLE, WHITE_ON_BLACK
 
-def editor_loop(stdscr: window, file_content: str, file_pad: window, file_lines: list, filelength: int, tool_win: window, WHITE_ON_LIGHT_PURPLE: int, WHITE_ON_BLACK: int):
+def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: window, file_lines: list, filelength: int, tool_win: window, WHITE_ON_LIGHT_PURPLE: int, WHITE_ON_BLACK: int):
     max_y, max_x = stdscr.getmaxyx()
+
+    fast_mode = False
 
     while True:
         try:
@@ -77,15 +86,30 @@ def editor_loop(stdscr: window, file_content: str, file_pad: window, file_lines:
                 case "\x18":
                     exit(0)
 
+                case "\x06": # control+f
+                    fast_mode = not fast_mode
+
                 case "KEY_UP":
                     if coords[0] == 1:
-                        continue #TODO: Implement the scrolling mechanism for the text pad
+                        continue  # TODO: Implement the scrolling mechanism for the text pad
                     else:
-                        next_line = file_lines[coords[0] - 2]
-                        if coords[1] >= len(next_line):
-                            stdscr.move(coords[0] - 1, len(next_line))
+                        if fast_mode:
+                            jmp = 4
+                            while coords[0] - jmp < 2:
+                                jmp -= 1
+
+                            next_line = file_lines[coords[0] - jmp]
+                            if coords[1] >= len(next_line):
+                                stdscr.move(coords[0] - jmp - 1, len(next_line))
+                            else:
+                                stdscr.move(coords[0] - jmp - 1, coords[1])
+
                         else:
-                            stdscr.move(coords[0] - 1, coords[1])
+                            next_line = file_lines[coords[0] - 2]
+                            if coords[1] >= len(next_line):
+                                stdscr.move(coords[0] - 1, len(next_line))
+                            else:
+                                stdscr.move(coords[0] - 1, coords[1])
                 case "KEY_DOWN":
                     if coords[0] + 3 >= max_y:
                         continue
@@ -113,14 +137,43 @@ def editor_loop(stdscr: window, file_content: str, file_pad: window, file_lines:
                         stdscr.move(coords[0], coords[1] - 1)
 
 
-                case "\x06": # control+f
-                    pass
+                case "KEY_BACKSPACE": # control+h, idk its weird
+                    tool_win.addstr(0, 0, "(^H: Close). The Mini editor is a powerful text editor based on the Python curses library and written by @trynathinkof1 on GitHub", WHITE_ON_LIGHT_PURPLE)
+                    tool_win.addstr(1, 0, "Everything you need is in the Mini manual. To access the whole manual, close the editor and run \"mini -man\".", WHITE_ON_LIGHT_PURPLE)
+                    tool_win.addstr(2, 0, "    To access a specific manual article such as 'commands' or 'keybinds', close the editor and run \"mini -man <article>\".", WHITE_ON_LIGHT_PURPLE)
+                    tool_win.refresh()
+                    stdscr.refresh()
+                    key = None
+                    while key != "KEY_BACKSPACE":
+                        try:
+                            new_k = stdscr.getkey()
+                        except:
+                            new_k = None
+
+                        if new_k and new_k == "KEY_BACKSPACE":
+                            tool_win.clear()
+                            tool_win.refresh()
+                            break
+
+                        key = new_k
+
+                    stdscr.move(coords[0], coords[1])
+                    continue
+
+                case "\x7f": # backspace
+                    print("BACKSPACE")
+
+                case "\x17": # control+w
+                    save(filepath, file_content)
+
+                case _:
+                    continue
 
             stdscr.refresh()
         except (KeyboardInterrupt, curses.error):
             key = None
             cmd = ""
-            tool_win.addstr(0, 0, "CMD: ", WHITE_ON_LIGHT_PURPLE)
+            tool_win.addstr(2, 0, "CMD: ", WHITE_ON_LIGHT_PURPLE)
             while key != "\n":
                 try:
                     new_k = stdscr.getkey()
@@ -134,18 +187,28 @@ def editor_loop(stdscr: window, file_content: str, file_pad: window, file_lines:
                         cmd += new_k
 
                 key = new_k
-                tool_win.addstr(0, 0, f"CMD: {cmd}", WHITE_ON_LIGHT_PURPLE)
+                tool_win.addstr(2, 0, f"CMD: {cmd}", WHITE_ON_LIGHT_PURPLE)
                 tool_win.refresh()
 
             tool_win.clear()
             tool_win.refresh()
             stdscr.refresh()
-            print(cmd)
+
+            if cmd.startswith(":fr"):
+                original, replacement = cmd[3:].strip().split("|")
+                original = original[1:-2]
+                replacement = replacement[2:-1]
+
+                new_file_content = file_content.replace(original, replacement)
+                update_file_content(file_pad, new_file_content)
+
             continue
 
-def editor_main(stdscr: window, filepath: str, file_content: str):
-    file_pad, file_lines, filelength, tool_win, WHITE_ON_LIGHT_PURPLE, WHITE_ON_BLACK = editor_init(stdscr, filepath, file_content)
+def update_file_content(file_pad: curses.window, new_file_content: str):
+    pass
 
-    file_content = editor_loop(stdscr, file_content, file_pad, file_lines, filelength, tool_win, WHITE_ON_LIGHT_PURPLE, WHITE_ON_BLACK)
+def save(filepath: str, file_content: str):
+    with open(filepath, "w") as f:
+        f.write(file_content)
 
-    return file_content
+    return
