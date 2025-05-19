@@ -1,15 +1,22 @@
 import curses
 from curses import window
 
-def editor_main(stdscr: window, filepath: str, file_content: str):
-    file_pad, file_lines, filelength, tool_win, WHITE_ON_LIGHT_PURPLE, WHITE_ON_BLACK = editor_init(stdscr, filepath, file_content)
+WHITE_ON_BLACK = None
+WHITE_ON_LIGHT_PURPLE = None
+max_y = None
+max_x = None
 
-    file_content = editor_loop(stdscr, filepath, file_content, file_pad, file_lines, filelength, tool_win, WHITE_ON_LIGHT_PURPLE, WHITE_ON_BLACK)
+def editor_main(stdscr: window, filepath: str, file_content: str):
+    file_pad, file_lines, filelength, tool_win = editor_init(stdscr, filepath, file_content)
+
+    file_content = editor_loop(stdscr, filepath, file_content, file_pad, file_lines, filelength, tool_win)
 
     return file_content
 
 def editor_init(stdscr: window, filepath: str, file_content: str):
-    curses.curs_set(1)
+    global WHITE_ON_BLACK, WHITE_ON_LIGHT_PURPLE
+
+    curses.curs_set(2)
     if curses.can_change_color():
         OFF_WHITE_ID = 1
         LIGHT_PURPLE_ID = 2
@@ -29,6 +36,7 @@ def editor_init(stdscr: window, filepath: str, file_content: str):
 
     bold_underline = curses.A_BOLD | curses.A_UNDERLINE
 
+    global max_y, max_x
     max_y, max_x = stdscr.getmaxyx()
     label_win = curses.newwin(1, max_x, 0, 0)
     if (l := len(filepath)) + 50 > max_x:
@@ -70,9 +78,9 @@ def editor_init(stdscr: window, filepath: str, file_content: str):
 
     stdscr.move(1, 0)
 
-    return file_pad, file_lines, filelength, tool_win, WHITE_ON_LIGHT_PURPLE, WHITE_ON_BLACK
+    return file_pad, file_lines, filelength, tool_win
 
-def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: window, file_lines: list, filelength: int, tool_win: window, WHITE_ON_LIGHT_PURPLE: int, WHITE_ON_BLACK: int):
+def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: window, file_lines: list, filelength: int, tool_win: window):
     max_y, max_x = stdscr.getmaxyx()
 
     fast_mode = False
@@ -221,6 +229,7 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                         cmd += new_k
 
                 key = new_k
+                tool_win.clear()
                 tool_win.addstr(2, 0, f"CMD: {cmd}", WHITE_ON_LIGHT_PURPLE)
                 tool_win.refresh()
 
@@ -232,14 +241,23 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                 original, replacement = cmd[3:].strip().split("|")
                 original = original[1:-2]
                 replacement = replacement[2:-1]
+                file_content = file_content.replace(original, replacement)
+                update_file_content(file_pad, file_content)
+                stdscr.refresh()
 
-                new_file_content = file_content.replace(original, replacement)
-                update_file_content(file_pad, new_file_content)
+            try:
+                coords = coords
+            except:
+                coords = stdscr.getyx()
 
+            stdscr.move(coords[0], coords[1])
             continue
 
-def update_file_content(file_pad: curses.window, new_file_content: str):
-    pass
+def update_file_content(file_pad: curses.window, file_content: str):
+    file_pad.clear()
+    file_pad.addstr(0, 0, file_content, WHITE_ON_BLACK)
+    file_pad.refresh(0, 0, 1, 0, max_y - 1, max_x - 1)
+    return
 
 def save(filepath: str, file_content: str):
     with open(filepath, "w") as f:
