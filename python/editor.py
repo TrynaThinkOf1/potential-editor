@@ -65,7 +65,7 @@ def editor_init(stdscr: window, filepath: str, file_content: str):
 
     file_pad = curses.newpad(filelength, max_x)
     stdscr.refresh()
-    #file_pad.addstr(file_content, WHITE_ON_BLACK)
+    file_pad.addstr(file_content, WHITE_ON_BLACK)
     file_pad.refresh(0, 0, 1, 0, max_y - 2, max_x)
 
     stdscr.move(1, 0)
@@ -113,26 +113,60 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                 case "KEY_DOWN":
                     if coords[0] + 3 >= max_y:
                         continue
+                    elif coords[0] + 1 >= filelength:
+                        continue  # TODO: Implement the scrolling mechanism for the text pad
+
                     else:
-                        if coords[0] + 1 >= filelength:
-                            continue  # TODO: Implement the scrolling mechanism for the text pad
-                        next_line = file_lines[coords[0]]
-                        if coords[1] >= len(next_line):
-                            stdscr.move(coords[0] + 1, len(next_line))
+                        if fast_mode:
+                            jmp = 4
+                            while coords[0] + jmp >= filelength - 1:
+                                jmp -= 1
+
+                            next_line = file_lines[coords[0] + jmp]
+                            if coords[1] >= len(next_line):
+                                stdscr.move(coords[0] + jmp + 1, len(next_line))
+                            else:
+                                stdscr.move(coords[0] + jmp + 1, coords[1])
                         else:
-                            stdscr.move(coords[0] + 1, coords[1])
+                            next_line = file_lines[coords[0]]
+                            if coords[1] >= len(next_line):
+                                stdscr.move(coords[0] + 1, len(next_line))
+                            else:
+                                stdscr.move(coords[0] + 1, coords[1])
                 case "KEY_RIGHT":
+                    if coords[0] + 1 >= filelength:
+                        continue
+
                     line = file_lines[coords[0] - 1]
                     if coords[1] >= len(line):
                         stdscr.move(coords[0] + 1, 0)
+                        continue
+
+                    if fast_mode:
+                        jmp = 4
+                        while coords[1] + jmp >= len(line) - 1:
+                            jmp -= 1
+                        stdscr.move(coords[0], coords[1] + jmp)
                     else:
                         stdscr.move(coords[0], coords[1] + 1)
                 case "KEY_LEFT":
+                    if coords[0] == 1 and coords[1] == 0:
+                        continue
+
+                    line = file_lines[coords[0] - 1]
                     if coords[1] == 0:
-                        if coords[0] == 1:
+                        if coords[0] - 2 < 0:
                             continue
                         else:
-                            stdscr.move(coords[0] - 1, len(file_lines[coords[0] - 2]))
+                            next_line_l = len(file_lines[coords[0] - 2])
+                            stdscr.move(coords[0] - 1, next_line_l)
+                            continue
+
+                    if fast_mode:
+                        jmp = 4
+                        while coords[1] - jmp < 0:
+                            jmp -= 1
+                        stdscr.move(coords[0], coords[1] - jmp)
                     else:
                         stdscr.move(coords[0], coords[1] - 1)
 
