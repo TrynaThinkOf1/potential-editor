@@ -51,7 +51,7 @@ def commands_man():
     It has a lot of external functionality, but where it really shines are the tools that Mini itself provides.
     
     Mini built-in commands:
-        - ':f "string to find"', find a simple string; highlight all instances of said string.
+        - ':f "string to find"', find a string; start at first instance, use up/down to go from one to another, esc to leave the search.
         - ':fr "string to find" | "the string to replace it with"', find a simple string and replace it with another string.
         - ':frp "regex pattern to find" | "the string to replace it with"', find all strings matching a RegEx pattern and replace them.
     

@@ -237,7 +237,18 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
             tool_win.refresh()
             stdscr.refresh()
 
-            if cmd.startswith(":fr"):
+            if cmd.startswith(":f"):
+                string = cmd[3:].strip()[1:-1]
+                instance_and_pos = {} # instance number: (y, x)
+                instance = iter(range(0, filelength))
+                for line in file_lines:
+                    if string in line:
+                        pos = line.index(string)
+                        instance_and_pos[next(instance)] = (file_lines.index(line), pos)
+
+                print(str(instance_and_pos))
+
+            elif cmd.startswith(":fr"):
                 original, replacement = cmd[3:].strip().split("|")
                 original = original[1:-2]
                 replacement = replacement[2:-1]
