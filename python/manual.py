@@ -10,6 +10,9 @@ def main():
             case "commands":
                 commands_man()
 
+            case "keybinds":
+                keybinds_man()
+
             case _:
                 print(f"""
 \033[1;31mCategory \"{arg}\" is not in the manual.
@@ -56,6 +59,16 @@ def commands_man():
         '! "terminal command"', run a terminal command (does not return output).
     """
     print(command_help)
+
+def keybinds_man():
+    keybinds_help = """[ KEYBINDS HELP ]
+    There are a ton of keybinds that Mini provides for extra functionality.
+    The most commonl and most useful ones are put at the bottom of the Mini editor page by default.
+    
+    Here is every keybind:
+        - '^F': Fast mode, your cursor will move 5 steps at a time instead of 1.
+    """
+    print(keybinds_help)
 
 if __name__ == "__main__":
     main()
