@@ -1,5 +1,7 @@
 import curses
+import re
 from curses import window
+from time import sleep
 
 WHITE_ON_BLACK = None
 WHITE_ON_LIGHT_PURPLE = None
@@ -215,7 +217,7 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
         except (KeyboardInterrupt, curses.error):
             key = None
             cmd = ""
-            tool_win.addstr(2, 0, "CMD: ", WHITE_ON_LIGHT_PURPLE)
+            tool_win.addstr(2, 0, "CMD >> ", WHITE_ON_LIGHT_PURPLE)
             while key != "\n":
                 try:
                     new_k = stdscr.getkey()
@@ -230,23 +232,59 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
 
                 key = new_k
                 tool_win.clear()
-                tool_win.addstr(2, 0, f"CMD: {cmd}", WHITE_ON_LIGHT_PURPLE)
+                tool_win.addstr(2, 0, f"CMD >> {cmd}", WHITE_ON_LIGHT_PURPLE)
                 tool_win.refresh()
 
             tool_win.clear()
             tool_win.refresh()
             stdscr.refresh()
 
-            if cmd.startswith(":f"):
+            if cmd.startswith(":f "):
                 string = cmd[3:].strip()[1:-1]
                 instance_and_pos = {} # instance number: (y, x)
-                instance = iter(range(0, filelength))
+                instance = iter(range(0, len(file_content)))
                 for line in file_lines:
                     if string in line:
                         pos = line.index(string)
                         instance_and_pos[next(instance)] = (file_lines.index(line), pos)
 
-                print(str(instance_and_pos))
+                l = len(instance_and_pos)
+                if l == 0:
+                    tool_win.addstr(2, 0, f"No instances of \"{string}\" found.", WHITE_ON_LIGHT_PURPLE)
+                    tool_win.refresh()
+                    sleep(2.5)
+                    tool_win.clear()
+                    tool_win.refresh()
+                    stdscr.refresh()
+                else:
+                    stdscr.move(instance_and_pos[0][0] + 1, instance_and_pos[0][1])
+
+                    _find_movement_loop(stdscr, instance_and_pos, l)
+                    stdscr.refresh()
+
+            elif cmd.startswith(":fp"):
+                pattern = rf"{cmd[3:].strip()[1:-1]}"
+                instance_and_pos = {}
+                instance = iter(range(0, len(file_content)))
+                for line in file_lines:
+                    if len(strs := re.findall(pattern, line)) > 0:
+                        for s in strs:
+                            pos = line.index(s)
+                            instance_and_pos[next(instance)] = (file_lines.index(line), pos)
+
+                l = len(instance_and_pos)
+                if l == 0:
+                    tool_win.addstr(2, 0, f"No strings matched \"{pattern}\".", WHITE_ON_LIGHT_PURPLE)
+                    tool_win.refresh()
+                    sleep(2.5)
+                    tool_win.clear()
+                    tool_win.refresh()
+                    stdscr.refresh()
+                else:
+                    stdscr.move(instance_and_pos[0][0] + 1, instance_and_pos[0][1])
+
+                    _find_movement_loop(stdscr, instance_and_pos, l)
+                    stdscr.refresh()
 
             elif cmd.startswith(":fr"):
                 original, replacement = cmd[3:].strip().split("|")
@@ -254,6 +292,25 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                 replacement = replacement[2:-1]
                 file_content = file_content.replace(original, replacement)
                 update_file_content(file_pad, file_content)
+                tool_win.addstr(1, 0, f"{len(re.findall(rf'{original}', file_content))} instances", WHITE_ON_LIGHT_PURPLE)
+                tool_win.addstr(2, 0, f"of replacing \"{original}\" with \"{replacement}\".", WHITE_ON_LIGHT_PURPLE)
+                tool_win.refresh()
+                sleep(2.5)
+                tool_win.clear()
+                stdscr.refresh()
+
+            elif cmd.startswith(":frp"):
+                pattern, replacement = cmd[3:].strip().split("|")
+                pattern = rf"{pattern[1:-2]}"
+                replacement = replacement[2:-1]
+                instances = len(re.findall(pattern, file_content))
+                file_content = re.sub(pattern, replacement, file_content)
+                update_file_content(file_pad, file_content)
+                tool_win.addstr(1, 0, f"{instances} instances of replacing", WHITE_ON_LIGHT_PURPLE)
+                tool_win.addstr(2, 0, f"strings that match\"{pattern}\" with \"{replacement}\".", WHITE_ON_LIGHT_PURPLE)
+                tool_win.refresh()
+                sleep(2.5)
+                tool_win.clear()
                 stdscr.refresh()
 
             try:
@@ -263,6 +320,9 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
 
             stdscr.move(coords[0], coords[1])
             continue
+
+def detect_edit(stdscr, file_pad, file_lines, filelength):
+    pass
 
 def update_file_content(file_pad: curses.window, file_content: str):
     file_pad.clear()
@@ -274,4 +334,36 @@ def save(filepath: str, file_content: str):
     with open(filepath, "w") as f:
         f.write(file_content)
 
+    return
+
+
+def _find_movement_loop(stdscr, instance_and_pos, l):
+    cur_instance = 0
+    key = None
+    while key != "\x1b":
+        try:
+            new_k = stdscr.getkey()
+        except:
+            new_k = None
+
+        if new_k:
+            match new_k:
+                case "\x1b":
+                    break
+
+                case "KEY_UP":
+                    if l == cur_instance or cur_instance == 0:
+                        continue
+                    else:
+                        cur_instance -= 1
+                        stdscr.move(instance_and_pos[cur_instance][0] + 1, instance_and_pos[cur_instance][1])
+
+                case "KEY_DOWN":
+                    if cur_instance == l - 1:
+                        continue
+                    else:
+                        cur_instance += 1
+                        stdscr.move(instance_and_pos[cur_instance][0] + 1, instance_and_pos[cur_instance][1])
+
+        key = new_k
     return

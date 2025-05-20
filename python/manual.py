@@ -49,9 +49,11 @@ def commands_man():
     command_help = """[ COMMAND BAR HELP ]
     The command bar is a small text input box that appears on the bottom of the Mini editor when you press ^C.
     It has a lot of external functionality, but where it really shines are the tools that Mini itself provides.
+    Commands also stores your command history for a specific session, use the up and down arrow keys to access it.
     
     Mini built-in commands:
         - ':f "string to find"', find a string; start at first instance, use up/down to go from one to another, esc to leave the search.
+        - ':fp "regex pattern to find"', find every string matching a pattern. Movement is the same as above.
         - ':fr "string to find" | "the string to replace it with"', find a simple string and replace it with another string.
         - ':frp "regex pattern to find" | "the string to replace it with"', find all strings matching a RegEx pattern and replace them.
     
