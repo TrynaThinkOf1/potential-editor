@@ -86,6 +86,7 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
     max_y, max_x = stdscr.getmaxyx()
 
     fast_mode = False
+    command_history = [""]
 
     while True:
         try:
@@ -214,9 +215,12 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                     continue
 
             stdscr.refresh()
+
+
         except (KeyboardInterrupt, curses.error):
             key = None
             cmd = ""
+            i = -1
             tool_win.addstr(2, 0, "CMD >> ", WHITE_ON_LIGHT_PURPLE)
             while key != "\n":
                 try:
@@ -225,8 +229,22 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                     new_k = None
 
                 if new_k and new_k != "\n":
-                    if new_k == "\x7f":
+                    if new_k == "\x1b":
+                        break
+                    elif new_k == "\x7f":
                         cmd = cmd[:-1]
+                    elif new_k == "KEY_UP":
+                        if abs(i) > len(command_history):
+                            cmd = ""
+                        else:
+                            cmd = command_history[i]
+                            i -=1
+                    elif new_k == "KEY_DOWN":
+                        if abs(i) == 0:
+                            cmd = ""
+                        else:
+                            cmd = command_history[i]
+                            i += 1
                     else:
                         cmd += new_k
 
@@ -239,7 +257,10 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
             tool_win.refresh()
             stdscr.refresh()
 
-            if cmd.startswith(":f "):
+            if cmd == ":q" or cmd == "":
+                pass
+
+            elif cmd.startswith(":f "):
                 string = cmd[3:].strip()[1:-1]
                 instance_and_pos = {} # instance number: (y, x)
                 instance = iter(range(0, len(file_content)))
@@ -261,6 +282,8 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
 
                     _find_movement_loop(stdscr, instance_and_pos, l)
                     stdscr.refresh()
+
+                command_history.append(f":f \"{string}\"")
 
             elif cmd.startswith(":fp"):
                 pattern = rf"{cmd[3:].strip()[1:-1]}"
@@ -286,6 +309,8 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                     _find_movement_loop(stdscr, instance_and_pos, l)
                     stdscr.refresh()
 
+                command_history.append(f":fp \"{pattern}\"")
+
             elif cmd.startswith(":fr"):
                 original, replacement = cmd[3:].strip().split("|")
                 original = original[1:-2]
@@ -298,6 +323,8 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                 sleep(2.5)
                 tool_win.clear()
                 stdscr.refresh()
+
+                command_history.append(f":fr \"{original}\" | \"{replacement}\"")
 
             elif cmd.startswith(":frp"):
                 pattern, replacement = cmd[3:].strip().split("|")
@@ -312,6 +339,16 @@ def editor_loop(stdscr: window, filepath: str, file_content: str, file_pad: wind
                 sleep(2.5)
                 tool_win.clear()
                 stdscr.refresh()
+
+                command_history.append(f":frp \"{pattern}\" | \"{replacement}\"")
+
+            else:
+                tool_win.addstr(1, 0, f"Command \"{cmd}\" not recognized.", WHITE_ON_LIGHT_PURPLE)
+                tool_win.addstr(2, 0, "Close the editor and type \"mini -man commands\" for a list of commands.", WHITE_ON_LIGHT_PURPLE)
+                tool_win.refresh()
+                sleep(2.5)
+                tool_win.clear()
+                tool_win.refresh()
 
             try:
                 coords = coords

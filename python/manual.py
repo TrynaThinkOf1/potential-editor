@@ -7,10 +7,10 @@ def main():
         commands_man()
     else:
         match arg:
-            case "commands":
+            case "commands" | "command" | "command-bar" | "commands-bar" | "cmd-bar" | "cmds-bar" | "cmd" | "cmds":
                 commands_man()
 
-            case "keybinds":
+            case "keybinds" | "keybind" | "keys" | "macros" | "shortcuts":
                 keybinds_man()
 
             case _:
